@@ -40,7 +40,7 @@ export function renderTrees(map, createBuildingLayer) {
         id: tree.id,
         map,
         lngLat: tree.lngLat,
-        glbPath: './tree1.glb',
+        glbPath: './models/tree1.glb',
         scaleFactor: tree.scaleFactor,
         offsetY: tree.offsetY
       })
