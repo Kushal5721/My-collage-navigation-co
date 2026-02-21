@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Lost Items Map</title>
+
+  <!-- MapLibre -->
+  <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    #container {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      transition: all 0.3s ease;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+
+    #sidebar {
+      width: 0;
+      overflow: hidden;
+      background: #f9f9f9;
+      border-left: 1px solid #ccc;
+      padding: 0;
+      transition: width 0.3s ease;
+    }
+
+    #sidebar.active {
+      width: 30%;
+      padding: 15px;
+    }
+
+    #formPanel {
+      width: 0;
+      overflow: hidden;
+      background: #ffffff;
+      border-left: 1px solid #ccc;
+      padding: 0;
+      transition: width 0.3s ease;
+    }
+
+    #formPanel.active {
+      width: 70%;
+      padding: 20px;
+    }
+
+    .top-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 10;
+      background: #1e90ff;
+      color: white;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .meta-dot {
+      width: 8px;
+      height: 8px;
+      background: red;
+      border-radius: 50%;
+      border: 1px solid white;
+      cursor: pointer;
+    }
+
+    h3 {
+      margin-top: 0;
+    }
+
+    input,
+    textarea,
+    button {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 8px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <button class="top-button" id="reportBtn">Report Lost Item</button>
+
+  <div id="container">
+    <div id="map"></div>
+    <div id="sidebar"></div>
+    <div id="formPanel"></div>
+  </div>
+
+  <script type="module">
+    import { createBuildingLayer } from './buildingLayer.js';
+    import { addRoadLayer } from './roadLayer.js';
+    import { roadNetwork } from './roads.js';
+    // import { addRoadPlaneLayer } from './planes.js';
+    import { addBuildings } from './buildings.js';
+    import { renderTrees } from './renderTrees.js';
+
+    const CENTER = [77.0912, 13.3224];
+
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: 'https://tiles.basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+      center: CENTER,
+      zoom: 16,
+      pitch: 0,
+      bearing: -2,
+      antialias: true
+    });
+
+    map.on('load', () => {
+      // addRoadPlaneLayer(map);
+      addRoadLayer(map, roadNetwork);
+      addBuildings(map);
+      renderTrees(map, createBuildingLayer);
+      renderAllLostItems();
+    });
+
+    /* ================= LOST ITEMS ================= */
+
+    const lostItems = [
+      { id: 1, name: "Wallet", desc: "Black leather wallet", lngLat: [77.5946, 12.9716] },
+      { id: 2, name: "Phone", desc: "Samsung Galaxy", lngLat: [77.5946, 12.9716] },
+      { id: 3, name: "Keys", desc: "House keys", lngLat: [77.5960, 12.9722] }
+    ];
+
+    const sidebar = document.getElementById('sidebar');
+    const formPanel = document.getElementById('formPanel');
+    const reportBtn = document.getElementById('reportBtn');
+
+    let reportingMode = false;
+    let selectedPoint = null;
+
+    function resetLayout() {
+      sidebar.classList.remove('active');
+      formPanel.classList.remove('active');
+      document.getElementById('map').style.width = '100%';
+    }
+
+    function showSidebar(item) {
+      formPanel.classList.remove('active');
+      sidebar.classList.add('active');
+      document.getElementById('map').style.width = '70%';
+
+      sidebar.innerHTML = `
+      <h3>${item.name}</h3>
+      <p>${item.desc}</p>
+      <p><b>Location:</b><br>${item.lngLat[1]}, ${item.lngLat[0]}</p>
+    `;
+    }
+
+    function addLostItemMarker(item, index = 0) {
+      const el = document.createElement('div');
+      el.className = 'meta-dot';
+
+      el.style.transform = `translate(${index * 3}px, ${index * 3}px)`;
+      el.onclick = () => showSidebar(item);
+
+      new maplibregl.Marker(el)
+        .setLngLat(item.lngLat)
+        .addTo(map);
+    }
+
+    function renderAllLostItems() {
+      lostItems.forEach((item, index) => {
+        addLostItemMarker(item, index);
+      });
+    }
+
+    function showForm() {
+      sidebar.classList.remove('active');
+      formPanel.classList.add('active');
+      document.getElementById('map').style.width = '30%';
+
+      formPanel.innerHTML = `
+      <h3>Report Lost Item</h3>
+      <input id="itemName" type="text" placeholder="Item name" required />
+      <textarea id="itemDesc" placeholder="Description"></textarea>
+      <button id="submitItem">Submit</button>
+    `;
+
+      document.getElementById('submitItem').onclick = submitLostItem;
+    }
+
+    function submitLostItem() {
+      const name = document.getElementById('itemName').value.trim();
+      const desc = document.getElementById('itemDesc').value.trim();
+
+      if (!name || !selectedPoint) {
+        alert("Missing item name or location");
+        return;
+      }
+
+      const newItem = {
+        id: Date.now(),
+        name,
+        desc,
+        lngLat: [selectedPoint.lng, selectedPoint.lat]
+      };
+
+      lostItems.push(newItem);
+      addLostItemMarker(newItem);
+
+      resetLayout();
+      selectedPoint = null;
+    }
+
+    reportBtn.onclick = () => {
+      resetLayout();
+      reportingMode = true;
+      alert("Click on map to select location");
+    };
+
+    map.on('click', (e) => {
+      if (!reportingMode) return;
+
+      reportingMode = false;
+      selectedPoint = e.lngLat;
+
+      new maplibregl.Marker({ color: 'blue' })
+        .setLngLat(selectedPoint)
+        .addTo(map);
+
+      showForm();
+    });
+  </script>
+
+</body>
+
+</html>

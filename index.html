@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>SSIT Atlas – Campus</title>
+
+  <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
+    #map {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #intro-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: white;
+      transition: opacity 1.5s ease;
+    }
+
+    #intro-overlay.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #intro-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- INTRO -->
+  <!-- <div id="intro-overlay">
+    <video id="intro-video" src="clouds.mp4" autoplay muted playsinline></video>
+  </div> -->
+
+  <div id="map"></div>
+
+  <script type="module">
+    import { createBuildingLayer } from './buildingLayer.js';
+    import { addRoadLayer } from './roadLayer.js';
+    import { roadNetwork } from './roads.js';
+    import { addRoadPlaneLayer } from './planes.js';
+    import { addBuildings } from './buildings.js';
+    import { renderTrees } from './renderTrees.js';
+
+
+    const CENTER = [77.0912, 13.3224];
+
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: 'https://tiles.basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+      center: CENTER,
+      zoom: 18,
+      pitch: 0,
+      bearing: -2,
+      antialias: true
+    });
+
+    map.on('load', () => {
+
+      /* ===== ROADS ===== */
+      addRoadPlaneLayer(map);
+      addRoadLayer(map, roadNetwork);
+
+      /* ===== BUILDINGS ===== */
+      addBuildings(map);
+      renderTrees(map, createBuildingLayer);
+    });
+
+    /* ===== INTRO FADE (4s) ===== */
+    const video = document.getElementById('intro-video');
+    const overlay = document.getElementById('intro-overlay');
+
+    video.addEventListener('timeupdate', () => {
+      if (video.currentTime >= 4) {
+        overlay.classList.add('fade-out');
+        setTimeout(() => overlay.remove(), 1500);
+        video.pause();
+      }
+    });
+  </script>
+
+</body>
+
+</html>
